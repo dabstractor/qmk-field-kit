@@ -1,0 +1,25 @@
+Ψ Compiling keymap with make -r -R -f builddefs/build_keyboard.mk -s KEYBOARD=handwired/dactyl_manuform/5x7_1 KEYMAP=default KEYBOARD_FILESAFE=handwired_dactyl_manuform_5x7_1 TARGET=handwired_dactyl_manuform_5x7_1_default VERBOSE=false COLOR=true SILENT=false QMK_BIN="qmk"
+
+
+arm-none-eabi-gcc (Arch Repository) 14.2.0
+Copyright (C) 2024 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+Size before:
+   text	   data	    bss	    dec	    hex	filename
+      0	  63384	      0	  63384	   f798	handwired_dactyl_manuform_5x7_1_default.uf2
+
+Generating: .build/obj_handwired_dactyl_manuform_5x7_1_default/src/info_config.h                    [32;01m[OK][0m
+Generating: .build/obj_handwired_dactyl_manuform_5x7_1_default/src/default_keyboard.h               [32;01m[OK][0m
+Generating: .build/obj_handwired_dactyl_manuform_5x7_1_default/src/community_modules.h              [32;01m[OK][0m
+Generating: .build/obj_handwired_dactyl_manuform_5x7_1_default/src/community_modules.c              [32;01m[OK][0m
+Generating: .build/obj_handwired_dactyl_manuform_5x7_1_default/src/community_modules_introspection.c [32;01m[OK][0m
+Generating: .build/obj_handwired_dactyl_manuform_5x7_1_default/src/community_modules_introspection.h [32;01m[OK][0m
+Generating: .build/obj_handwired_dactyl_manuform_5x7_1_default/src/led_matrix_community_modules.inc [32;01m[OK][0m
+Generating: .build/obj_handwired_dactyl_manuform_5x7_1_default/src/rgb_matrix_community_modules.inc [32;01m[OK][0m
+Generating: .build/obj_handwired_dactyl_manuform_5x7_1_default/src/default_keyboard.c               [32;01m[OK][0m
+Compiling: quantum/command.c                                                                        [32;01m[OK][0m
+Linking: .build/handwired_dactyl_manuform_5x7_1_default.elf                                         [32;01m[OK][0m
+Creating UF2 file for deployment: .build/handwired_dactyl_manuform_5x7_1_default.uf2                [32;01m[OK][0m
+Copying handwired_dactyl_manuform_5x7_1_default.uf2 to qmk_firmware folder                          [32;01m[OK][0m
