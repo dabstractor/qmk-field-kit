@@ -1,22 +1,106 @@
 # QMK Field Kit
 
-A modular Python replacement for QMK's `flash.sh` script that automatically detects keyboard features, handles bootloader entry, and manages split keyboard flashing.
+A modular Python replacement for QMK's `flash.sh` script that automatically detects keyboard features, handles bootloader entry, and manages split keyboard flashing with advanced features like side lock protection.
 
 ## Features
 
 - **Automatic Feature Detection**: Parses `keyboard.json` and `rules.mk` to detect split keyboards, bootloaders, and MCU types
-- **Smart Bootloader Entry**: Automatically enters bootloader mode via serial commands (RP2040) with fallback to manual mode
+- **Auto Bootloader**: Automatically triggers bootloader mode after compilation for seamless flashing
+- **Side Lock Protection**: Prevents accidentally flashing the wrong side of a split keyboard
 - **Cross-Platform Support**: Works on Linux (including Arch), macOS, and Windows (via WSL)
 - **Split Keyboard Aware**: Automatically handles left/right side selection and appropriate flash commands
 - **Modular Architecture**: Easy to extend for new MCUs and bootloader types
 
 ## Installation
 
-The package is self-contained and uses only Python 3.8+ standard library (except for `pyserial` for bootloader communication).
+### 1. Add as Git Submodule
+
+Navigate to your QMK firmware root directory and add QMK Field Kit as a submodule in your keyboard directory:
 
 ```bash
-# Install pyserial if not already installed
+# Adjust the keyboard path to point to your keyboard
+git submodule add https://github.com/dabstractor/qmk-field-kit keyboards/[YOUR/KEYBOARD]/qmk-field-kit
+```
+
+### 2. Install Dependencies
+
+QMK Field Kit uses only Python 3.8+ standard library except for optional HID communication:
+
+```bash
+# Optional: Install pyserial for HID bootloader communication (recommended)
 pip install pyserial
+```
+
+
+### Enable Features in rules.mk
+
+Add the following to your keyboard's `rules.mk` file to enable QMK Field Kit features:
+
+```makefile
+# QMK Field Kit Features
+AUTO_BOOTLOADER_ENABLE = yes    # Enable automatic bootloader triggering
+SIDE_LOCK_ENABLE = yes          # Enable side lock protection (split keyboards only)
+```
+
+### Include Field Kit in Your Keymap
+
+Add the following to your keymap's `keymap.c`:
+
+```c
+#include QMK_KEYBOARD_H
+#include "./qmk-field-kit/field_kit.h"
+
+// ... your keymap code ...
+
+// Add this to handle HID communication
+void raw_hid_receive(uint8_t *data, uint8_t length) {
+    field_kit_process_message(data, length);
+}
+```
+
+
+### 3. (Optional) Create Wrapper Script
+
+For convenience, add this `flash` script at the root of your QMK repository:
+
+```bash
+#!/bin/bash
+
+# QMK Field Kit Flash Wrapper
+# Python-based replacement for the original flash.sh
+
+# Extract keyboard and keymap from QMK config
+KEYBOARD=$(qmk config user.keyboard | cut -d'=' -f2)
+KEYMAP=$(qmk config user.keymap | cut -d'=' -f2)
+
+# Validate that we got the config values
+if [ -z "$KEYBOARD" ] || [ -z "$KEYMAP" ]; then
+    echo "Error: Could not extract keyboard or keymap from QMK config"
+    echo "Please ensure QMK is properly configured with 'qmk config user.keyboard=<keyboard>' and 'qmk config user.keymap=<keymap>'"
+    exit 1
+fi
+
+# Navigate to the QMK Field Kit directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FIELD_KIT_DIR="$SCRIPT_DIR/keyboards/$KEYBOARD/qmk-field-kit"
+
+# Check if QMK Field Kit exists
+if [ ! -d "$FIELD_KIT_DIR" ]; then
+    echo "Error: QMK Field Kit not found at $FIELD_KIT_DIR"
+    echo "Please ensure the qmk-field-kit directory exists and contains the Python modules."
+    exit 1
+fi
+
+# Change to field kit directory
+cd "$FIELD_KIT_DIR"
+
+# Run the Python module with all arguments passed through
+python3 -m qmk_field_kit "$@"
+```
+
+And make it executable:
+```bash
+chmod +x flash
 ```
 
 ## Usage
@@ -24,54 +108,71 @@ pip install pyserial
 ### Basic Flashing
 
 ```bash
-# Flash right side (default)
-python -m qmk_field_kit
+# First run
+./flash left --force   # Sets initial left side state
+./flash right --force  # Sets initial right side state
 
-# Flash left side  
-python -m qmk_field_kit left
+# Subsequent runs (side auto-detected)
+./flash
 
-# Flash specific keyboard
-python -m qmk_field_kit right --keyboard handwired/dactyl_manuform/5x7_1
+# Flash specific side (no need to ever run these, but they are here)
+./flash left   # Will fail if attempting to flash right side
+./flash right  # Will fail if attempting to flash left side
 ```
 
 ### Information and Diagnostics
 
 ```bash
-# Show keyboard information
-python -m qmk_field_kit --info
+# Show keyboard information and enabled features
+./flash --info
 
-# Validate environment
-python -m qmk_field_kit --validate
+# Validate environment and dependencies
+./flash --validate
 
-# Enter bootloader mode only
-python -m qmk_field_kit --bootloader
+# Test HID communication with keyboard
+./flash --hid-test
+
+# Enter bootloader mode only (no flashing)
+./flash --bootloader
 ```
 
-### Direct Module Usage
+### Advanced Usage
 
 ```bash
-# Run the main CLI module directly
-python qmk_field_kit/cli.py left
+# Flash specific keyboard (override QMK config)
+./flash left --keyboard handwired/dactyl_manuform/5x7
 
-# Or make it executable and run directly
-chmod +x qmk_field_kit/cli.py
-./qmk_field_kit/cli.py left
+# Verbose output for debugging
+./flash right --verbose
 ```
 
-## Architecture
+## Features
 
-### Core Modules
+### Auto Bootloader (`AUTO_BOOTLOADER_ENABLE = yes`)
 
-- **`features.py`**: Parses `keyboard.json` and `rules.mk` to detect enabled features
-- **`bootloader.py`**: Handles MCU-specific bootloader entry (RP2040, AVR, ARM)  
-- **`flash.py`**: Manages side selection and platform-specific flash commands
-- **`cli.py`**: Command-line interface and main entry point
+When enabled, QMK Field Kit:
+1. Compiles your firmware first
+2. Automatically triggers bootloader mode via HID commands
+3. Flashes the compiled firmware
+4. No manual bootloader entry required!
+
+**Benefits:**
+- Seamless one-command flashing
+- No need to press BOOT+RESET buttons
+- Works with RP2040 keyboards (others coming soon)
+
+### Side Lock (`SIDE_LOCK_ENABLE = yes`)
+
+Prevents accidentally flashing the wrong side of a split keyboard by:
+1. Querying the keyboard via HID to determine current side configuration
+2. Blocking cross-side flashing attempts
+3. Providing clear error messages and override options
 
 ### Supported MCUs
 
-- **RP2040**: Serial bootloader entry, UF2 flashing
-- **AVR**: Standard bootloaders (DFU, Caterina, etc.)
-- **ARM**: STM32 and similar ARM-based MCUs
+- **RP2040**: HID bootloader entry, UF2 flashing
+- **AVR**: Standard bootloaders (DFU, Caterina, etc.) - *coming soon*
+- **ARM**: STM32 and similar ARM-based MCUs - *coming soon*
 
 ### Platform Support
 
@@ -79,51 +180,46 @@ chmod +x qmk_field_kit/cli.py
 - **macOS**: Uses `picotool` for RP2040, standard QMK flash for others
 - **Windows/WSL**: Generic QMK flash commands
 
-## Integration
+## Examples
 
-### Replacing flash.sh
+### Complete Setup Example
 
-To replace the existing `flash.sh` with this Python implementation:
+For a `handwired/dactyl_manuform/5x7_1` keyboard:
 
+1. **Add submodule:**
 ```bash
-# Backup original
-cp flash.sh flash.sh.backup
-
-# Create new wrapper (done automatically by installation)
-cat > flash.sh << 'EOF'
-#!/bin/bash
-cd "$(dirname "$0")/keyboards/handwired/dactyl_manuform/5x7_1/qmk-field-kit"
-python -m qmk_field_kit "$@"
-EOF
-
-chmod +x flash.sh
+git submodule add https://github.com/dabstractor/qmk-field-kit keyboards/[path/to/your/keyboard]/qmk-field-kit
 ```
 
-### Module Import
-
-```python
-from qmk_field_kit import get_features, flash_keyboard, enter_bootloader
-
-# Get keyboard features
-features = get_features()
-print(f"Split keyboard: {features['split_enabled']}")
-
-# Flash keyboard
-success = flash_keyboard('left')
-
-# Enter bootloader only
-enter_bootloader('rp2040', 'serial')
+2. **Update `keyboards/handwired/dactyl_manuform/5x7_1/rules.mk`:**
+```makefile
+AUTO_BOOTLOADER_ENABLE = yes
+SIDE_LOCK_ENABLE = yes
 ```
 
-## Configuration
+3. **Update your `keymap.c`:**
+```c
+#include "./qmk-field-kit/field_kit.h"
 
-The tool reads configuration from:
+void raw_hid_receive(uint8_t *data, uint8_t length) {
+    field_kit_process_message(data, length);
+}
+```
 
-1. **QMK Config**: `qmk config user.keyboard` and `qmk config user.keymap`
-2. **Keyboard JSON**: `keyboards/{keyboard}/keyboard.json`
-3. **Rules MK**: `keyboards/{keyboard}/rules.mk` and included files
+4. **Create root `flash` script** (use the script from the Installation section)
 
-No separate configuration file is needed - `keyboard.json` and `rules.mk` are the single source of truth.
+5. **Set up QMK config (if not already done):**
+```bash
+qmk config user.keyboard=handwired/dactyl_manuform/5x7
+qmk config user.keymap=default  # or your keymap name
+```
+
+6. **Flash your keyboard:**
+```bash
+./flash left   # First time setup - flash left side
+./flash right  # First time setup - flash right side
+./flash        # After setup - auto-detects side
+```
 
 ## Troubleshooting
 
@@ -144,29 +240,60 @@ brew install picotool
 ### Bootloader Detection Issues
 
 If automatic bootloader entry fails:
-1. Use `--bootloader` flag to test bootloader entry only
+1. Use `./flash --bootloader` to test bootloader entry only
 2. Check serial port permissions
 3. Manually enter bootloader mode (BOOT + RESET)
-4. Use `--verbose` flag for detailed output
+4. Use `./flash --verbose` for detailed output
 
-## Extending
+### Side Lock Issues
 
-### Adding New MCU Support
+If side lock isn't working:
+1. Ensure you don't have `RAW_HID_ENABLE = no` in `rules.mk`
+2. Verify `field_kit_process_message()` is in `raw_hid_receive()`
+3. Test with `./flash --hid-test`
+4. Use `./flash --force` to bypass for initial setup
 
-Add new MCU family to `bootloader.py`:
+## Development
 
-```python
-def _enter_new_mcu_bootloader(self):
-    # Implementation for new MCU
-    pass
-```
-
-### Adding New Platform Support
-
-Extend platform detection in `flash.py`:
+### Module Import
 
 ```python
-def _build_new_platform_commands(self, features, side):
-    # Platform-specific command building
-    pass
+from qmk_field_kit import get_features, flash_keyboard, enter_bootloader
+
+# Get keyboard features
+features = get_features()
+print(f"Split keyboard: {features['split_enabled']}")
+
+# Flash keyboard
+success = flash_keyboard('left')
+
+# Enter bootloader only
+enter_bootloader('rp2040', 'serial')
 ```
+
+### Extending Support
+
+See the existing modules for examples of adding:
+- New MCU families (`bootloader.py`)
+- New platform support (`flash.py`)
+- Additional features (`features.py`)
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Add tests for new functionality
+4. Submit a pull request
+
+## License
+
+[License information here]
+
+## Changelog
+
+### v1.0.0
+- Initial release
+- RP2040 support with HID bootloader entry
+- Side lock protection for split keyboards
+- Auto bootloader feature
+- Cross-platform support (Linux, macOS, Windows/WSL)
