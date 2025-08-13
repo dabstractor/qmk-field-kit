@@ -10,7 +10,7 @@ try:
     HID_AVAILABLE = True
 except ImportError:
     HID_AVAILABLE = False
-    print("Warning: hidapi library not available. Install with: pip install hidapi")
+    print("Warning: hidapi library not available. Install with: pip install -r requirements.txt")
 
 
 class HIDCommunicator:

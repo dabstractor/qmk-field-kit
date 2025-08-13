@@ -1,0 +1,2 @@
+# QMK Field Kit Dependencies
+hidapi>=0.14.0

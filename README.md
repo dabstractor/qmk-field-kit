@@ -24,11 +24,11 @@ git submodule add https://github.com/dabstractor/qmk-field-kit keyboards/[YOUR/K
 
 ### 2. Install Dependencies
 
-QMK Field Kit uses only Python 3.8+ standard library except for optional HID communication:
+QMK Field Kit uses only Python 3.8+ standard library except for HID communication:
 
 ```bash
-# Optional: Install pyserial for HID bootloader communication (recommended)
-pip install pyserial
+# Install dependencies for HID bootloader communication
+pip install -r requirements.txt
 ```
 
 
@@ -48,7 +48,7 @@ Add the following to your keymap's `keymap.c`:
 
 ```c
 #include QMK_KEYBOARD_H
-#include "./qmk-field-kit/field_kit.h"
+#include "../qmk-field-kit/field_kit.h"
 
 // ... your keymap code ...
 
