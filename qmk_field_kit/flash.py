@@ -195,6 +195,24 @@ class FlashManager:
             print("The one over there ---------------------->")
         print()
     
+    def _find_qmk_root(self) -> Optional[Path]:
+        """
+        Find QMK firmware root by traversing up the directory tree until we find util/uf2conv.py.
+        
+        Returns:
+            Path to QMK firmware root or None if not found
+        """
+        current_path = Path.cwd().resolve()
+        
+        # Traverse up the directory tree
+        while current_path != current_path.parent:
+            uf2conv_path = current_path / "util" / "uf2conv.py"
+            if uf2conv_path.exists():
+                return current_path
+            current_path = current_path.parent
+        
+        return None
+
     def _build_flash_commands(self, features: Dict[str, Any], side: str) -> Tuple[Optional[str], Optional[str]]:
         """
         Build flash and post-flash commands based on features and platform.
@@ -226,8 +244,14 @@ class FlashManager:
                 keymap = self._get_current_keymap()
                 filename = f"{keyboard_name}_{keymap}.uf2"
                 
+                # Find QMK firmware root dynamically
+                qmk_root = self._find_qmk_root()
+                if not qmk_root:
+                    print("Error: Could not find QMK firmware root (util/uf2conv.py)")
+                    return None, None
+                
                 # Use QMK's built-in uf2conv.py tool with --wait --deploy for automatic reboot
-                post_cmd = f"cd /home/dustin/projects/qmk_firmware && ./util/uf2conv.py --wait --deploy {filename}"
+                post_cmd = f"cd {qmk_root} && ./util/uf2conv.py --wait --deploy {filename}"
             else:
                 # For other bootloaders, use appropriate flash command after bootloader trigger
                 post_cmd = f"qmk flash -bl {bootloader}-split-{side}"
