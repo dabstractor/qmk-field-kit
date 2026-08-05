@@ -222,8 +222,8 @@ def test_hid_communication() -> int:
     device_info = comm.find_device()
     
     if not device_info:
-        print("❌ Keyboard not found (VID: 0xFEED, PID: 0x0000)")
-        print("   Make sure keyboard is connected and firmware supports raw HID")
+        print("❌ Keyboard not found (no QMK Raw HID interface on usage page 0xFF60)")
+        print("   Make sure the keyboard is connected and its firmware enables Raw HID")
         return 1
     
     print(f"✓ Found keyboard: {device_info.get('product_string', 'Unknown')}")

@@ -27,33 +27,25 @@ class HIDCommunicator:
     RESPONSE_BOOTLOADER_TRIGGERED = 0x02
     RESPONSE_INFO = 0x03
     
-    def __init__(self, vid: int = 0xFEED, pid: int = 0x0000):
-        self.vid = vid
-        self.pid = pid
+    def __init__(self):
         self.device = None
         self.system = platform.system()
     
     def find_device(self) -> Optional[Dict[str, Any]]:
-        """Find the keyboard HID device."""
+        """Find the keyboard's QMK Raw HID interface.
+
+        VID/PID-agnostic: enumerate every HID device and select the one carrying
+        the QMK Raw HID signature (usage page 0xFF60, usage 0x61). This finds
+        the keyboard regardless of its USB VID/PID — so it survives a VID/PID
+        change and finds either half of the split even if they're on different
+        firmware (e.g. one still on the legacy 0xFEED:0x0000).
+        """
         if not HID_AVAILABLE:
             return None
-        
-        devices = hid.enumerate(self.vid, self.pid)
-        
-        for device_info in devices:
-            # Look for raw HID interface (usage page 0xFF00 = 65376 or similar)
-            # QMK typically uses interface 1 for raw HID
-            usage_page = device_info.get('usage_page', 0)
-            interface_num = device_info.get('interface_number', -1)
-            
-            if (usage_page == 65376 or  # 0xFF00 - Raw HID usage page
-                interface_num == 1):    # Typical raw HID interface
+        for device_info in hid.enumerate(0x0, 0x0):
+            if (device_info.get('usage_page') == 0xFF60
+                    and device_info.get('usage') == 0x61):
                 return device_info
-        
-        # If no specific raw HID interface found, try the first device
-        if devices:
-            return devices[0]
-        
         return None
     
     def connect(self) -> bool:
@@ -64,7 +56,7 @@ class HIDCommunicator:
         
         device_info = self.find_device()
         if not device_info:
-            print(f"Keyboard not found (VID: {hex(self.vid)}, PID: {hex(self.pid)})")
+            print("Keyboard not found (no QMK Raw HID interface on usage page 0xFF60)")
             return False
         
         try:
