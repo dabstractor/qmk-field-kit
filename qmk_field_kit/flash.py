@@ -6,7 +6,7 @@ import shutil
 from pathlib import Path
 from typing import Optional, Tuple, Dict, Any
 
-from .features import get_features
+from .features import get_features, strip_config_annotation
 from .bootloader import BootloaderManager
 from .hid_comm import HIDCommunicator
 
@@ -269,7 +269,7 @@ class FlashManager:
         try:
             result = subprocess.run(['qmk', 'config', 'user.keymap'], 
                                   capture_output=True, text=True, check=True)
-            return result.stdout.strip().split('=')[1]
+            return strip_config_annotation(result.stdout.strip().split('=')[1])
         except (subprocess.CalledProcessError, IndexError):
             return "default"
     
@@ -284,7 +284,7 @@ class FlashManager:
         try:
             result = subprocess.run(['qmk', 'config', 'user.keyboard'], 
                                   capture_output=True, text=True, check=True)
-            if not result.stdout.strip().split('=')[1]:
+            if not strip_config_annotation(result.stdout.strip().split('=')[1]):
                 print("Error: No keyboard selected. Use 'qmk config user.keyboard=...'")
                 return False
         except subprocess.CalledProcessError:

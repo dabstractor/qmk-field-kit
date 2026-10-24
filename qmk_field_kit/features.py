@@ -7,6 +7,13 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 
 
+def strip_config_annotation(value: str) -> str:
+    """Strip the value-source annotation the standalone qmk CLI (>= 1.x) appends
+    to config output, e.g. 'user.keyboard=foo (config)'. Older 0.x CLIs print
+    bare values; this stays compatible with both."""
+    return re.sub(r'\s*\((?:config|cli|default)\)\s*$', '', value.strip())
+
+
 class FeatureDetector:
     """Parses QMK configuration to detect enabled features."""
 
@@ -27,7 +34,7 @@ class FeatureDetector:
         try:
             result = subprocess.run(['qmk', 'config', 'user.keyboard'],
                                   capture_output=True, text=True, check=True)
-            return result.stdout.strip().split('=')[1]
+            return strip_config_annotation(result.stdout.strip().split('=')[1])
         except (subprocess.CalledProcessError, IndexError):
             raise RuntimeError("Could not determine current keyboard from qmk config")
 
